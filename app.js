@@ -516,7 +516,7 @@ function renderPlayerUnlocked() {
   return `
     <div class="page page-with-nav player-page">
       <div class="page-header">
-        <button class="back-btn" onclick="navigate('home')">${Icons.back} See All Content</button>
+        <button class="back-btn" onclick="navigate('home')">${Icons.back} See All</button>
       </div>
 
       <div class="player-art-wrap">

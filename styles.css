@@ -209,25 +209,27 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
   height: 100%;
   display: flex;
   flex-direction: column;
-  padding: 0 28px;
   overflow-y: auto;
+  overflow-x: hidden;
+}
+.onboarding-logo-bar {
+  padding: 36px 28px 0;
+  flex-shrink: 0;
+}
+.onboarding-logo-bar .logo-img {
+  height: 30px;
+  width: auto;
+  display: block;
 }
 .onboarding-top {
   flex: 1;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  padding-top: 60px;
-  padding-bottom: 32px;
+  justify-content: flex-start;
+  padding: 36px 28px 24px;
 }
-.onboarding-logo {
-  font-size: 13px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin-bottom: 40px;
-}
+/* keep old selector in case referenced elsewhere */
+.onboarding-logo { display: none; }
 .onboarding-title {
   font-size: 30px;
   font-weight: 700;
@@ -251,8 +253,8 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
   text-transform: uppercase;
 }
 .onboarding-bottom {
-  padding-bottom: 40px;
-  padding-bottom: calc(40px + var(--safe-bottom));
+  padding: 0 28px calc(40px + var(--safe-bottom));
+  flex-shrink: 0;
 }
 .onboarding-terms {
   font-size: 12px;
@@ -271,13 +273,15 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
 .otp-contact strong { color: var(--text-primary); }
 
 .otp-inputs {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 12px;
   margin-bottom: 32px;
+  width: 100%;
 }
 .otp-input {
-  flex: 1;
-  height: 64px;
+  width: 100%;
+  aspect-ratio: 1 / 1;
   text-align: center;
   font-size: 28px;
   font-weight: 700;
@@ -288,6 +292,10 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
   outline: none;
   transition: border-color 0.2s;
   caret-color: var(--accent);
+  padding: 0;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
 }
 .otp-input:focus { border-color: var(--accent); }
 
@@ -319,23 +327,28 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
 }
 
 /* ─── Home Page ──────────────────────────────────────────────────────── */
+.home-sticky {
+  position: sticky;
+  top: 0;
+  background: var(--surface);
+  z-index: 10;
+  border-bottom: 1px solid var(--border-light);
+}
 .home-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 20px 20px 0;
-  position: sticky;
-  top: 0;
-  background: var(--surface);
-  z-index: 10;
 }
 .home-logo {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.5px;
-  color: var(--text-primary);
+  display: flex;
+  align-items: center;
 }
-.home-logo span { color: var(--accent); }
+.logo-img {
+  height: 32px;
+  width: auto;
+  display: block;
+}
 
 .spotify-btn {
   display: flex;
@@ -357,10 +370,6 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
   display: flex;
   gap: 8px;
   padding: 16px 20px 12px;
-  position: sticky;
-  top: 60px;
-  background: var(--surface);
-  z-index: 9;
 }
 .pill {
   padding: 8px 20px;

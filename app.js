@@ -367,8 +367,10 @@ function renderBottomNav() {
 function renderOnboardingEmail() {
   return `
     <div class="onboarding-page">
+      <div class="onboarding-logo-bar">
+        <img src="Art_and_ode_logo.svg" alt="Art and Ode" class="logo-img" />
+      </div>
       <div class="onboarding-top">
-        <div class="onboarding-logo">Art &amp; Ode</div>
         <h1 class="onboarding-title">Sacred music for the modern seeker.</h1>
         <p class="onboarding-sub">Enter your email or phone number to access mantras, songs, and odes.</p>
         <div class="onboarding-label">Email or Phone</div>
@@ -393,8 +395,10 @@ function renderOnboardingEmail() {
 function renderOnboardingOTP() {
   return `
     <div class="onboarding-page">
+      <div class="onboarding-logo-bar">
+        <img src="Art_and_ode_logo.svg" alt="Art and Ode" class="logo-img" />
+      </div>
       <div class="onboarding-top">
-        <div class="onboarding-logo">Art &amp; Ode</div>
         <button class="otp-back" onclick="navigate('onboarding-email')">${Icons.back} Back</button>
         <h1 class="onboarding-title">Verify your identity</h1>
         <p class="otp-contact">We sent a 4-digit code to <strong>${state.contactInput}</strong></p>
@@ -417,17 +421,19 @@ function renderHome() {
   const tab = state.homeTab;
   return `
     <div class="page page-with-nav">
-      <div class="home-header">
-        <div class="home-logo">Art <span>&</span> Ode</div>
-        <a href="https://open.spotify.com" target="_blank" class="spotify-btn" title="Art &amp; Ode on Spotify">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-            <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115.294.18.387.563.207.857zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 0 1-.973-.519.78.78 0 0 1 .52-.972c3.632-1.102 8.147-.568 11.233 1.329a.78.78 0 0 1 .257 1.071zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 0 1-.583-1.782c3.532-1.155 9.404-.932 13.115 1.338a.937.937 0 0 1-.915 1.6z"/>
-          </svg>
-        </a>
-      </div>
-      <div class="pill-bar">
-        <button class="pill ${tab === 'mantras' ? 'active' : ''}" onclick="switchTab('mantras')">Mantras</button>
-        <button class="pill ${tab === 'songs' ? 'active' : ''}" onclick="switchTab('songs')">Songs &amp; Odes</button>
+      <div class="home-sticky">
+        <div class="home-header">
+          <div class="home-logo"><img src="Art_and_ode_logo.svg" alt="Art and Ode" class="logo-img" /></div>
+          <a href="https://open.spotify.com/artist/6Fa1zno90g0nwRLDooYbz9?si=MhVVJGd_SYWmATatzCM1rg" onclick="event.preventDefault();window.open('https://open.spotify.com/artist/6Fa1zno90g0nwRLDooYbz9?si=MhVVJGd_SYWmATatzCM1rg','_blank','noopener,noreferrer')" class="spotify-btn" title="Art &amp; Ode on Spotify">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115.294.18.387.563.207.857zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 0 1-.973-.519.78.78 0 0 1 .52-.972c3.632-1.102 8.147-.568 11.233 1.329a.78.78 0 0 1 .257 1.071zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 0 1-.583-1.782c3.532-1.155 9.404-.932 13.115 1.338a.937.937 0 0 1-.915 1.6z"/>
+            </svg>
+          </a>
+        </div>
+        <div class="pill-bar">
+          <button class="pill ${tab === 'mantras' ? 'active' : ''}" onclick="switchTab('mantras')">Mantras</button>
+          <button class="pill ${tab === 'songs' ? 'active' : ''}" onclick="switchTab('songs')">Songs &amp; Odes</button>
+        </div>
       </div>
       <div class="card-list" id="card-list">
         ${tab === 'mantras' ? renderMantraList() : renderSongList()}

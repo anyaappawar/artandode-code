@@ -224,24 +224,30 @@ const SONGS = [
 ];
 
 // ─── Storage Keys ──────────────────────────────────────────────────────────
-const STORAGE_USER    = 'artandode_user';
-const STORAGE_SAVED   = 'artandode_saved';
-const STORAGE_DELETED = 'artandode_deleted';
+const STORAGE_USER        = 'artandode_user';
+const STORAGE_SAVED       = 'artandode_saved';
+const STORAGE_SAVED_ORDER = 'artandode_saved_order';
+const STORAGE_DELETED     = 'artandode_deleted';
+const STORAGE_UNLOCKED    = 'artandode_unlocked';
 
 // ─── State ─────────────────────────────────────────────────────────────────
 const state = {
-  view:        'onboarding-email',
-  user:        null,
-  savedIds:    new Set(),
-  deletedIds:  new Set(),
-  homeTab:     'mantras',
-  currentItem: null,
-  isPlaying:   false,
-  loopOn:      true,
-  pendingQR:   null,
-  playTimer:   null,
-  playProgress:0,
-  contactInput:'',
+  view:          'onboarding-email',
+  user:          null,
+  savedIds:      new Set(),
+  savedOrder:    [],
+  deletedIds:    new Set(),
+  unlockedIds:   new Set(),
+  homeTab:       'mantras',
+  currentItem:   null,
+  isPlaying:     false,
+  loopOn:        true,
+  pendingQR:     null,
+  playTimer:     null,
+  playProgress:  0,
+  contactInput:  '',
+  savedEditMode: false,
+  qrStream:      null,
 };
 
 // ─── Helpers ───────────────────────────────────────────────────────────────
@@ -249,25 +255,31 @@ function findItem(id) {
   return [...MANTRAS, ...SONGS].find(x => x.id === id) || null;
 }
 
-function isSaved(id) { return state.savedIds.has(id); }
-function isDeleted(id) { return state.deletedIds.has(id); }
+function isSaved(id)    { return state.savedIds.has(id); }
+function isDeleted(id)  { return state.deletedIds.has(id); }
+function isUnlocked(item) { return item.unlocked || state.unlockedIds.has(item.id); }
 
 function toggleSave(id) {
   if (state.savedIds.has(id)) {
     state.savedIds.delete(id);
+    state.savedOrder = state.savedOrder.filter(x => x !== id);
     showToast('Removed from Saved');
   } else {
     state.savedIds.add(id);
+    state.savedOrder.push(id);
     showToast('Saved');
   }
   localStorage.setItem(STORAGE_SAVED, JSON.stringify([...state.savedIds]));
+  localStorage.setItem(STORAGE_SAVED_ORDER, JSON.stringify(state.savedOrder));
 }
 
 function deleteItem(id) {
   state.deletedIds.add(id);
   state.savedIds.delete(id);
+  state.savedOrder = state.savedOrder.filter(x => x !== id);
   localStorage.setItem(STORAGE_DELETED, JSON.stringify([...state.deletedIds]));
   localStorage.setItem(STORAGE_SAVED, JSON.stringify([...state.savedIds]));
+  localStorage.setItem(STORAGE_SAVED_ORDER, JSON.stringify(state.savedOrder));
 }
 
 function loadState() {
@@ -276,8 +288,13 @@ function loadState() {
     if (user) state.user = user;
     const saved = JSON.parse(localStorage.getItem(STORAGE_SAVED));
     if (saved) state.savedIds = new Set(saved);
+    const savedOrder = JSON.parse(localStorage.getItem(STORAGE_SAVED_ORDER));
+    if (savedOrder) state.savedOrder = savedOrder;
+    else if (saved) state.savedOrder = saved; // back-compat
     const deleted = JSON.parse(localStorage.getItem(STORAGE_DELETED));
     if (deleted) state.deletedIds = new Set(deleted);
+    const unlocked = JSON.parse(localStorage.getItem(STORAGE_UNLOCKED));
+    if (unlocked) state.unlockedIds = new Set(unlocked);
   } catch(e) {}
 }
 
@@ -295,9 +312,10 @@ function logout() {
 // ─── Router ────────────────────────────────────────────────────────────────
 function navigate(view, item = null) {
   if (state.playTimer) { clearInterval(state.playTimer); state.playTimer = null; }
-  state.isPlaying   = false;
+  state.isPlaying    = false;
   state.playProgress = 0;
-  state.view        = view;
+  state.savedEditMode = false;
+  state.view         = view;
   if (item) state.currentItem = item;
   render();
 }
@@ -314,7 +332,9 @@ const Icons = {
   skipFwd: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 4 15 12 5 20 5 4"/><line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
   skipBack: `<svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><polygon points="19 20 9 12 19 4 19 20"/><line x1="5" y1="19" x2="5" y2="5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>`,
   loop: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>`,
-  share: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>`,
+  loopOff: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/><line x1="2" y1="2" x2="22" y2="22" stroke-width="2.5"/></svg>`,
+  share: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8"/><polyline points="16 6 12 2 8 6"/><line x1="12" y1="2" x2="12" y2="15"/></svg>`,
+  drag: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="12" x2="16" y2="12"/><line x1="8" y1="17" x2="16" y2="17"/></svg>`,
   lock: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
   lockSm: `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`,
   qr: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="3" height="3"/><line x1="20" y1="14" x2="20" y2="17"/><line x1="17" y1="20" x2="20" y2="20"/></svg>`,
@@ -424,11 +444,16 @@ function renderHome() {
       <div class="home-sticky">
         <div class="home-header">
           <div class="home-logo"><img src="Art_and_ode_logo.svg" alt="Art and Ode" class="logo-img" /></div>
-          <a href="https://open.spotify.com/artist/6Fa1zno90g0nwRLDooYbz9?si=MhVVJGd_SYWmATatzCM1rg" onclick="event.preventDefault();window.open('https://open.spotify.com/artist/6Fa1zno90g0nwRLDooYbz9?si=MhVVJGd_SYWmATatzCM1rg','_blank','noopener,noreferrer')" class="spotify-btn" title="Art &amp; Ode on Spotify">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
-              <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115.294.18.387.563.207.857zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 0 1-.973-.519.78.78 0 0 1 .52-.972c3.632-1.102 8.147-.568 11.233 1.329a.78.78 0 0 1 .257 1.071zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 0 1-.583-1.782c3.532-1.155 9.404-.932 13.115 1.338a.937.937 0 0 1-.915 1.6z"/>
-            </svg>
-          </a>
+          <div class="home-header-actions">
+            <button class="qr-scan-btn" onclick="openQRScanner()" title="Scan QR Code">
+              ${Icons.qr}
+            </button>
+            <a href="https://open.spotify.com/artist/6Fa1zno90g0nwRLDooYbz9?si=MhVVJGd_SYWmATatzCM1rg" onclick="event.preventDefault();window.open('https://open.spotify.com/artist/6Fa1zno90g0nwRLDooYbz9?si=MhVVJGd_SYWmATatzCM1rg','_blank','noopener,noreferrer')" class="spotify-btn" title="Art &amp; Ode on Spotify">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                <path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.586 14.424a.623.623 0 0 1-.857.207c-2.348-1.435-5.304-1.759-8.785-.964a.623.623 0 1 1-.277-1.215c3.809-.87 7.076-.496 9.712 1.115.294.18.387.563.207.857zm1.223-2.722a.78.78 0 0 1-1.072.257c-2.687-1.652-6.785-2.131-9.965-1.166a.78.78 0 0 1-.973-.519.78.78 0 0 1 .52-.972c3.632-1.102 8.147-.568 11.233 1.329a.78.78 0 0 1 .257 1.071zm.105-2.835C14.692 8.95 9.375 8.775 6.297 9.71a.937.937 0 0 1-.583-1.782c3.532-1.155 9.404-.932 13.115 1.338a.937.937 0 0 1-.915 1.6z"/>
+              </svg>
+            </a>
+          </div>
         </div>
         <div class="pill-bar">
           <button class="pill ${tab === 'mantras' ? 'active' : ''}" onclick="switchTab('mantras')">Mantras</button>
@@ -442,8 +467,8 @@ function renderHome() {
 }
 
 function renderMantraList() {
-  const unlocked = MANTRAS.filter(m => m.unlocked && !isDeleted(m.id));
-  const locked   = MANTRAS.filter(m => !m.unlocked && !isDeleted(m.id));
+  const unlocked = MANTRAS.filter(m => isUnlocked(m) && !isDeleted(m.id));
+  const locked   = MANTRAS.filter(m => !isUnlocked(m) && !isDeleted(m.id));
   let html = '';
   if (unlocked.length) {
     html += `<div class="card-section-label">Available</div>`;
@@ -463,12 +488,10 @@ function renderSongList() {
 }
 
 function cardHTML(item) {
-  const locked = item.type === 'mantra' && !item.unlocked;
-  const badge  = item.unlocked ? '' : `<span class="card-badge">Locked</span>`;
+  const locked = item.type === 'mantra' && !isUnlocked(item);
+  const badge  = isUnlocked(item) ? '' : `<span class="card-badge">Locked</span>`;
   return `
     <div class="card-wrapper" id="wrap-${item.id}">
-      <div class="card-swipe-bg left">${Icons.trash} Delete</div>
-      <div class="card-swipe-bg right">${Icons.heartFill} Save</div>
       <div class="card" id="card-${item.id}" onclick="cardClick('${item.id}')">
         ${artDiv(item, 60, locked)}
         <div class="card-info">
@@ -488,7 +511,6 @@ function switchTab(tab) {
   const list = document.getElementById('card-list');
   if (list) {
     list.innerHTML = tab === 'mantras' ? renderMantraList() : renderSongList();
-    initSwipeHandlers();
   }
   document.querySelectorAll('.pill').forEach((p, i) => {
     p.classList.toggle('active', (i === 0 && tab === 'mantras') || (i === 1 && tab === 'songs'));
@@ -552,7 +574,7 @@ function renderPlayerUnlocked() {
           ${saved ? 'Saved' : 'Save'}
         </button>
         <button class="action-btn ${state.loopOn ? 'active' : ''}" id="loop-btn" onclick="toggleLoop()">
-          ${Icons.loop}
+          ${state.loopOn ? Icons.loop : Icons.loopOff}
           Loop ${state.loopOn ? 'On' : 'Off'}
         </button>
         <button class="action-btn" onclick="openShare('${item.id}')">
@@ -612,17 +634,63 @@ function renderPlayerLocked() {
 
 // ─── Saved Page ────────────────────────────────────────────────────────────
 function renderSaved() {
-  const items = [...MANTRAS, ...SONGS].filter(x => isSaved(x.id));
+  // Build ordered items list, sync savedIds with savedOrder for back-compat
+  const orderedIds = [...state.savedOrder];
+  [...state.savedIds].forEach(id => {
+    if (!orderedIds.includes(id)) orderedIds.push(id);
+  });
+  const items = orderedIds.map(id => findItem(id)).filter(x => x && !isDeleted(x.id));
+
+  const editMode = state.savedEditMode;
   const content = items.length
-    ? `<div class="card-list">${items.map(x => cardHTML(x)).join('<div class="card-divider"></div>')}</div>`
+    ? `<div class="card-list" id="saved-card-list">${items.map(x => savedCardHTML(x)).join('<div class="card-divider"></div>')}</div>`
     : `<div class="saved-empty">
         ${Icons.heart}
-        <p>Nothing saved yet.<br/>Swipe right on a card or tap Save while playing.</p>
+        <p>Nothing saved yet.<br/>Tap Save while playing to add items here.</p>
        </div>`;
   return `
     <div class="page page-with-nav saved-page">
-      <div class="saved-header"><h2>Saved</h2></div>
+      <div class="saved-header">
+        <h2>Saved</h2>
+        ${items.length ? `<button class="saved-edit-btn" onclick="toggleSavedEdit()">${editMode ? 'Done' : 'Edit'}</button>` : ''}
+      </div>
       ${content}
+    </div>`;
+}
+
+function savedCardHTML(item) {
+  const locked = item.type === 'mantra' && !isUnlocked(item);
+  const badge  = isUnlocked(item) ? '' : `<span class="card-badge">Locked</span>`;
+  if (state.savedEditMode) {
+    return `
+      <div class="card-wrapper saved-card-wrapper" id="wrap-${item.id}" data-id="${item.id}">
+        <div class="card card-edit-mode" id="card-${item.id}">
+          <button class="card-delete-btn" onclick="deleteSavedItem('${item.id}')">${Icons.trash}</button>
+          ${artDiv(item, 60, locked)}
+          <div class="card-info">
+            <div class="card-name">${item.name}</div>
+            <div class="card-meta">
+              <span>${item.length}</span>
+              ${badge}
+            </div>
+          </div>
+          <div class="drag-handle">${Icons.drag}</div>
+        </div>
+      </div>`;
+  }
+  return `
+    <div class="card-wrapper" id="wrap-${item.id}">
+      <div class="card" id="card-${item.id}" onclick="cardClick('${item.id}')">
+        ${artDiv(item, 60, locked)}
+        <div class="card-info">
+          <div class="card-name">${item.name}</div>
+          <div class="card-meta">
+            <span>${item.length}</span>
+            ${badge}
+          </div>
+        </div>
+        <div class="card-chevron">${Icons.chevron}</div>
+      </div>
     </div>`;
 }
 
@@ -834,9 +902,8 @@ function toggleLoop() {
   const btn = document.getElementById('loop-btn');
   if (btn) {
     btn.className = `action-btn ${state.loopOn ? 'active' : ''}`;
-    btn.innerHTML = `${Icons.loop} Loop ${state.loopOn ? 'On' : 'Off'}`;
+    btn.innerHTML = `${state.loopOn ? Icons.loop : Icons.loopOff} Loop ${state.loopOn ? 'On' : 'Off'}`;
   }
-  showToast(state.loopOn ? 'Loop On' : 'Loop Off');
 }
 
 function handleSave(id) {
@@ -857,7 +924,7 @@ function handleSave(id) {
 function cardClick(id) {
   const item = findItem(id);
   if (!item) return;
-  if (item.unlocked) {
+  if (isUnlocked(item)) {
     navigate('player-unlocked', item);
   } else {
     navigate('player-locked', item);
@@ -865,72 +932,209 @@ function cardClick(id) {
 }
 
 function handleScanQR() {
-  showToast('Point your camera at an Art & Ode QR code to unlock this mantra.');
+  openQRScanner();
 }
 
-// ─── Swipe Handlers ────────────────────────────────────────────────────────
-function initSwipeHandlers() {
-  const cards = document.querySelectorAll('.card');
-  cards.forEach(card => {
-    let startX = 0, startY = 0, currentX = 0, swiping = false, axis = null;
-    const id    = card.id.replace('card-', '');
-    const wrap  = document.getElementById('wrap-' + id);
-    const bgL   = wrap ? wrap.querySelector('.card-swipe-bg.left')  : null;
-    const bgR   = wrap ? wrap.querySelector('.card-swipe-bg.right') : null;
-    const THRESHOLD = 80;
+// ─── QR Scanner ────────────────────────────────────────────────────────────
+function openQRScanner() {
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    showToast('Camera not supported on this browser');
+    return;
+  }
+  const overlay = document.createElement('div');
+  overlay.id = 'qr-scanner-overlay';
+  overlay.className = 'qr-scanner-overlay';
+  overlay.innerHTML = `
+    <video id="qr-video" autoplay playsinline muted class="qr-video"></video>
+    <div class="qr-scanner-ui">
+      <div class="qr-scanner-header">
+        <button class="qr-close-btn" onclick="closeQRScanner()">Cancel</button>
+      </div>
+      <div class="qr-frame-area">
+        <div class="qr-frame"></div>
+      </div>
+      <p class="qr-hint">Align the QR code within the frame</p>
+    </div>
+    <canvas id="qr-canvas" style="display:none"></canvas>
+  `;
+  document.body.appendChild(overlay);
 
-    card.addEventListener('touchstart', e => {
-      startX   = e.touches[0].clientX;
-      startY   = e.touches[0].clientY;
-      currentX = 0;
-      swiping  = false;
-      axis     = null;
-      card.classList.add('swiping');
-    }, { passive: true });
-
-    card.addEventListener('touchmove', e => {
-      const dx = e.touches[0].clientX - startX;
-      const dy = e.touches[0].clientY - startY;
-      if (!axis) axis = Math.abs(dx) > Math.abs(dy) ? 'x' : 'y';
-      if (axis !== 'x') return;
-      e.preventDefault();
-      currentX = dx;
-      card.style.transform = `translateX(${dx}px)`;
-      if (bgL) bgL.classList.toggle('show', dx < -20);
-      if (bgR) bgR.classList.toggle('show', dx > 20);
-    }, { passive: false });
-
-    card.addEventListener('touchend', () => {
-      card.classList.remove('swiping');
-      card.classList.add('snap-back');
-      if (currentX < -THRESHOLD) {
-        // Delete
-        card.style.transform = `translateX(-120%)`;
-        setTimeout(() => {
-          deleteItem(id);
-          if (wrap) {
-            wrap.style.height = wrap.offsetHeight + 'px';
-            wrap.style.overflow = 'hidden';
-            wrap.style.transition = 'height 0.25s ease';
-            requestAnimationFrame(() => { wrap.style.height = '0'; });
-            setTimeout(() => wrap.remove(), 260);
-          }
-          showToast('Removed');
-        }, 200);
-      } else if (currentX > THRESHOLD) {
-        // Save
-        card.style.transform = '';
-        if (!isSaved(id)) { toggleSave(id); }
-        else showToast('Already saved');
-        if (bgR) bgR.classList.remove('show');
-      } else {
-        card.style.transform = '';
-        if (bgL) bgL.classList.remove('show');
-        if (bgR) bgR.classList.remove('show');
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } })
+    .then(stream => {
+      state.qrStream = stream;
+      const video = document.getElementById('qr-video');
+      if (video) {
+        video.srcObject = stream;
+        video.play().then(startQRScan).catch(startQRScan);
       }
-      setTimeout(() => card.classList.remove('snap-back'), 300);
-    }, { passive: true });
-  });
+    })
+    .catch(() => {
+      closeQRScanner();
+      showToast('Camera access is required to scan QR codes');
+    });
+}
+
+function closeQRScanner() {
+  if (state.qrStream) {
+    state.qrStream.getTracks().forEach(t => t.stop());
+    state.qrStream = null;
+  }
+  window._qrDetector = null;
+  const el = document.getElementById('qr-scanner-overlay');
+  if (el) el.remove();
+}
+
+function startQRScan() {
+  const video  = document.getElementById('qr-video');
+  const canvas = document.getElementById('qr-canvas');
+  if (!video || !canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  function tick() {
+    if (!document.getElementById('qr-scanner-overlay')) return;
+    if (video.readyState !== video.HAVE_ENOUGH_DATA) { requestAnimationFrame(tick); return; }
+
+    canvas.width  = video.videoWidth;
+    canvas.height = video.videoHeight;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    if ('BarcodeDetector' in window) {
+      if (!window._qrDetector) window._qrDetector = new BarcodeDetector({ formats: ['qr_code'] });
+      window._qrDetector.detect(video)
+        .then(codes => {
+          if (codes.length > 0) { handleQRResult(codes[0].rawValue); }
+          else requestAnimationFrame(tick);
+        })
+        .catch(() => requestAnimationFrame(tick));
+    } else if (window.jsQR) {
+      const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      const code = jsQR(imageData.data, imageData.width, imageData.height);
+      if (code) { handleQRResult(code.data); }
+      else requestAnimationFrame(tick);
+    } else {
+      // No QR library — keep scanning
+      requestAnimationFrame(tick);
+    }
+  }
+  requestAnimationFrame(tick);
+}
+
+function handleQRResult(value) {
+  let itemId = null;
+  const candleMatch = value.match(/[?&]candle=([\w-]+)/);
+  if (candleMatch) {
+    itemId = candleMatch[1];
+  } else {
+    const idMatch = value.match(/\b(mantra-\d+|song-\d+)\b/);
+    if (idMatch) itemId = idMatch[1];
+  }
+
+  const item = itemId ? findItem(itemId) : null;
+  closeQRScanner();
+
+  if (!item) {
+    showToast('QR code not recognized. Try an Art & Ode QR code.');
+    return;
+  }
+
+  if (item.type === 'mantra' && !isUnlocked(item)) {
+    unlockMantra(item.id);
+  }
+  navigate('player-unlocked', item);
+}
+
+function unlockMantra(id) {
+  state.unlockedIds.add(id);
+  localStorage.setItem(STORAGE_UNLOCKED, JSON.stringify([...state.unlockedIds]));
+  showToast('Mantra unlocked!');
+}
+
+// ─── Saved Edit Mode ───────────────────────────────────────────────────────
+function toggleSavedEdit() {
+  state.savedEditMode = !state.savedEditMode;
+  render();
+}
+
+function deleteSavedItem(id) {
+  state.savedIds.delete(id);
+  state.savedOrder = state.savedOrder.filter(x => x !== id);
+  localStorage.setItem(STORAGE_SAVED, JSON.stringify([...state.savedIds]));
+  localStorage.setItem(STORAGE_SAVED_ORDER, JSON.stringify(state.savedOrder));
+
+  const wrap = document.getElementById('wrap-' + id);
+  if (wrap) {
+    wrap.style.overflow = 'hidden';
+    wrap.style.height   = wrap.offsetHeight + 'px';
+    wrap.style.transition = 'height 0.25s ease, opacity 0.2s ease';
+    requestAnimationFrame(() => {
+      wrap.style.height  = '0';
+      wrap.style.opacity = '0';
+      setTimeout(() => {
+        wrap.remove();
+        const list = document.getElementById('saved-card-list');
+        if (list && !list.querySelector('.saved-card-wrapper')) render();
+      }, 260);
+    });
+  }
+}
+
+// ─── Saved Drag-and-Drop ───────────────────────────────────────────────────
+function initSavedDragHandlers() {
+  if (!state.savedEditMode) return;
+  const list = document.getElementById('saved-card-list');
+  if (!list) return;
+
+  let srcEl = null, clone = null, startY = 0, startRect = null;
+
+  function getWrappers() { return [...list.querySelectorAll('.saved-card-wrapper')]; }
+
+  list.addEventListener('touchstart', e => {
+    const handle = e.target.closest('.drag-handle');
+    if (!handle) return;
+    srcEl = handle.closest('.saved-card-wrapper');
+    if (!srcEl) return;
+
+    e.preventDefault();
+    startRect = srcEl.getBoundingClientRect();
+    startY = e.touches[0].clientY;
+
+    clone = srcEl.cloneNode(true);
+    clone.style.cssText = `position:fixed;left:${startRect.left}px;top:${startRect.top}px;width:${startRect.width}px;z-index:500;opacity:0.95;box-shadow:0 8px 28px rgba(0,0,0,0.18);pointer-events:none;background:var(--surface);transition:none;`;
+    document.body.appendChild(clone);
+    srcEl.style.opacity = '0.3';
+  }, { passive: false });
+
+  list.addEventListener('touchmove', e => {
+    if (!srcEl || !clone) return;
+    e.preventDefault();
+
+    const y  = e.touches[0].clientY;
+    const dy = y - startY;
+    clone.style.top = (startRect.top + dy) + 'px';
+
+    // Reorder in DOM for live feedback
+    const cloneCenter = startRect.top + dy + startRect.height / 2;
+    const siblings = getWrappers().filter(w => w !== srcEl);
+    let insertBefore = null;
+    for (const w of siblings) {
+      const r = w.getBoundingClientRect();
+      if (cloneCenter < r.top + r.height / 2) { insertBefore = w; break; }
+    }
+    if (insertBefore) list.insertBefore(srcEl, insertBefore);
+    else list.appendChild(srcEl);
+  }, { passive: false });
+
+  function endDrag() {
+    if (!srcEl) return;
+    if (clone) { clone.remove(); clone = null; }
+    srcEl.style.opacity = '';
+    state.savedOrder = getWrappers().map(w => w.dataset.id);
+    localStorage.setItem(STORAGE_SAVED_ORDER, JSON.stringify(state.savedOrder));
+    srcEl = null;
+  }
+
+  list.addEventListener('touchend',   endDrag, { passive: true });
+  list.addEventListener('touchcancel', endDrag, { passive: true });
 }
 
 // ─── Onboarding Actions ────────────────────────────────────────────────────
@@ -956,8 +1160,8 @@ function handleOTPVerify() {
   if (state.pendingQR) {
     const item = findItem(state.pendingQR);
     state.pendingQR = null;
-    if (item && item.unlocked) { navigate('player-unlocked', item); return; }
-    if (item && !item.unlocked) { navigate('player-locked', item); return; }
+    if (item && isUnlocked(item))  { navigate('player-unlocked', item); return; }
+    if (item && !isUnlocked(item)) { navigate('player-locked',   item); return; }
   }
   navigate('home');
 }
@@ -1025,8 +1229,7 @@ function render() {
 
 function afterRender() {
   if (state.view === 'onboarding-otp')    initOTPInputs();
-  if (state.view === 'home')              initSwipeHandlers();
-  if (state.view === 'saved')             initSwipeHandlers();
+  if (state.view === 'saved')             initSavedDragHandlers();
   if (state.view === 'onboarding-email') {
     const inp = document.getElementById('contact-input');
     if (inp) {
@@ -1045,8 +1248,8 @@ function init() {
   if (state.user) {
     if (candleId) {
       const item = findItem(candleId);
-      if (item && item.unlocked) { navigate('player-unlocked', item); return; }
-      if (item && !item.unlocked){ navigate('player-locked',   item); return; }
+      if (item && isUnlocked(item))  { navigate('player-unlocked', item); return; }
+      if (item && !isUnlocked(item)) { navigate('player-locked',   item); return; }
     }
     navigate('home');
   } else {

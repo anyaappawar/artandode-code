@@ -350,6 +350,29 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
   display: block;
 }
 
+.home-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.qr-scan-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--bg);
+  border: 1.5px solid var(--border);
+  border-radius: 50%;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+.qr-scan-btn:hover  { background: var(--border-light); }
+.qr-scan-btn:active { transform: scale(0.93); }
+
 .spotify-btn {
   display: flex;
   align-items: center;
@@ -365,6 +388,102 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
 }
 .spotify-btn:hover { opacity: 0.9; transform: scale(1.05); }
 .spotify-btn:active { transform: scale(0.95); }
+
+/* ─── QR Scanner Overlay ─────────────────────────────────────────────── */
+.qr-scanner-overlay {
+  position: fixed;
+  inset: 0;
+  background: #000;
+  z-index: 400;
+  display: flex;
+  align-items: stretch;
+}
+
+.qr-video {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.qr-scanner-ui {
+  position: relative;
+  z-index: 10;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  background: transparent;
+}
+
+.qr-scanner-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 56px 24px 16px;
+}
+
+.qr-close-btn {
+  background: rgba(0,0,0,0.5);
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 8px 18px;
+  font-size: 15px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.qr-close-btn:active { opacity: 0.7; }
+
+.qr-frame-area {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.qr-frame {
+  width: 260px;
+  height: 190px;
+  border: 3px solid #F5C518;
+  border-radius: 14px;
+  box-shadow:
+    0 0 0 2000px rgba(0,0,0,0.55),
+    inset 0 0 0 1px rgba(245,197,24,0.3);
+  position: relative;
+}
+
+/* Corner accents */
+.qr-frame::before,
+.qr-frame::after {
+  content: '';
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: #F5C518;
+  border-style: solid;
+}
+.qr-frame::before {
+  top: -4px; left: -4px;
+  border-width: 4px 0 0 4px;
+  border-radius: 4px 0 0 0;
+}
+.qr-frame::after {
+  bottom: -4px; right: -4px;
+  border-width: 0 4px 4px 0;
+  border-radius: 0 0 4px 0;
+}
+
+.qr-hint {
+  text-align: center;
+  color: rgba(255,255,255,0.85);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 28px 32px calc(48px + env(safe-area-inset-bottom, 0px));
+  line-height: 1.5;
+}
 
 .pill-bar {
   display: flex;
@@ -726,8 +845,58 @@ p  { font-size: 15px; line-height: 1.6; color: var(--text-secondary); }
   background: var(--surface);
   z-index: 10;
   border-bottom: 1px solid var(--border-light);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 .saved-header h2 { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+
+.saved-edit-btn {
+  background: none;
+  border: none;
+  color: var(--accent);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  padding: 4px 0;
+}
+.saved-edit-btn:active { opacity: 0.7; }
+
+/* Edit mode card */
+.card-edit-mode {
+  cursor: default;
+  gap: 12px;
+}
+.card-edit-mode:active { background: var(--surface); }
+
+.card-delete-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #E53E3E;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s, transform 0.1s;
+}
+.card-delete-btn:active { background: #C53030; transform: scale(0.93); }
+
+.drag-handle {
+  flex-shrink: 0;
+  color: var(--text-tertiary);
+  cursor: grab;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+}
+.drag-handle:active { cursor: grabbing; }
+
+.saved-card-wrapper.dragging { opacity: 0.3; }
 
 .saved-empty {
   flex: 1;
